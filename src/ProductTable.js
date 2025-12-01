@@ -1,13 +1,12 @@
 // src/ProductTable.js
 import React, { useEffect, useState } from "react";
 
-function ProductTable() {
-  const [products, setProducts] = useState([]);   // where we store the products
-  const [loading, setLoading] = useState(true);   // true while we are waiting
-  const [error, setError] = useState(null);       // store any error message
+function ProductTable({ extraProducts = [] }) {
+  const [products, setProducts] = useState([]);   // products from API
+  const [loading, setLoading] = useState(true);   // true while loading
+  const [error, setError] = useState(null);       // error message
 
   useEffect(() => {
-    // this runs once when the component loads
     async function fetchProducts() {
       try {
         const response = await fetch("https://fakestoreapi.com/products");
@@ -16,18 +15,17 @@ function ProductTable() {
         }
 
         const data = await response.json();
-        setProducts(data);       // save the products in state
+        setProducts(data);
       } catch (err) {
-        setError(err.message);   // if something went wrong
+        setError(err.message);
       } finally {
-        setLoading(false);       // done loading (success or error)
+        setLoading(false);
       }
     }
 
     fetchProducts();
-  }, []); // empty array = run only once
+  }, []);
 
-  // Show messages while loading or if there's an error
   if (loading) {
     return <p className="info">Loading products...</p>;
   }
@@ -36,7 +34,9 @@ function ProductTable() {
     return <p className="info error">Error: {error}</p>;
   }
 
-  // When data is ready, show the table
+  // combine API products + manually added ones (extra at the end)
+  const allProducts = [...products, ...extraProducts];
+
   return (
     <table className="product-table">
       <thead>
@@ -51,28 +51,30 @@ function ProductTable() {
         </tr>
       </thead>
       <tbody>
-        {products.map((product) => (
-          <tr key={product.id}>
-            <td>{product.id}</td>
+        {allProducts.map((product) => (
+          <tr key={product.id ?? product.title}>
+            <td>{product.id ?? "-"}</td>
 
             <td className="title-cell">{product.title}</td>
 
             <td>{product.category}</td>
 
-            <td>${product.price.toFixed(2)}</td>
+            <td>${Number(product.price).toFixed(2)}</td>
 
-            {/* product.rating has { rate, count } */}
+            {/* product.rating has { rate, count } – may not exist for new ones */}
             <td>{product.rating?.rate ?? "N/A"}</td>
 
-            {/* We use rating.count as "Stock" */}
+            {/* Use rating.count as "Stock" if available */}
             <td>{product.rating?.count ?? 0}</td>
 
             <td>
-              <img
-                src={product.image}
-                alt={product.title}
-                className="product-image"
-              />
+              {product.image && (
+                <img
+                  src={product.image}
+                  alt={product.title}
+                  className="product-image"
+                />
+              )}
             </td>
           </tr>
         ))}
