@@ -1,19 +1,19 @@
 // src/components/AddProductForm.js
 import React, { useState } from "react";
+import { API_BASE_URL } from "../config";
 
 function AddProductForm({ onProductAdded }) {
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
-  const [imageData, setImageData] = useState("");      // base64 (for preview)
+  const [imageData, setImageData] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  // Convert file → base64 and show preview
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -21,9 +21,10 @@ function AddProductForm({ onProductAdded }) {
     const reader = new FileReader();
 
     reader.onloadend = () => {
-      const base64 = reader.result;
-      setImageData(base64);
-      setImagePreview(base64);
+      const fullDataUrl = reader.result;        // data:image/jpeg;base64,...
+      const pureBase64 = fullDataUrl.split(",")[1]; // strip header for DB
+      setImageData(pureBase64);
+      setImagePreview(fullDataUrl);
     };
 
     reader.readAsDataURL(file);
@@ -35,9 +36,8 @@ function AddProductForm({ onProductAdded }) {
     setSuccessMessage("");
     setErrorMessage("");
 
-    // Basic validation
-    if (!title || !price || !description || !category || !imageData) {
-      setErrorMessage("Please fill in all fields and select an image.");
+    if (!title || !price || !description || !category) {
+      setErrorMessage("Please fill in all fields.");
       return;
     }
 
@@ -46,34 +46,35 @@ function AddProductForm({ onProductAdded }) {
       return;
     }
 
-    // What we send to the FakeStore API
-    // (use a small image URL so the API always accepts it)
     const newProduct = {
-      title,
+      name: title,
       price: Number(price),
       description,
-      image: "https://i.pravatar.cc/150?img=3",
       category,
+      image: imageData || null,
     };
+
+    console.log("Submitting product:", newProduct);
 
     try {
       setIsSubmitting(true);
 
-      const res = await fetch("https://fakestoreapi.com/products", {
+      const res = await fetch(`${API_BASE_URL}/products`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newProduct),
       });
 
-      const createdProduct = await res.json();
+      const body = await res.json().catch(() => null);
+      console.log("POST /products status:", res.status);
+      console.log("POST /products response:", body);
 
       if (!res.ok) {
         throw new Error("Failed to add product");
       }
 
-      // For displaying in our table: use the uploaded image (base64)
+      const createdProduct = body || newProduct;
+
       const productForTable = {
         ...createdProduct,
         image: imagePreview || createdProduct.image,
@@ -84,8 +85,6 @@ function AddProductForm({ onProductAdded }) {
       }
 
       setSuccessMessage("Product added successfully!");
-
-      // Reset form
       setTitle("");
       setPrice("");
       setDescription("");
@@ -106,7 +105,7 @@ function AddProductForm({ onProductAdded }) {
 
       <form className="add-product-form" onSubmit={handleSubmit}>
         <label>
-          Title
+          Product Name
           <input
             type="text"
             value={title}
